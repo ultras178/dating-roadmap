@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dating — Дорожная карта</title>
-<!-- Firebase compat (no bundler, no modules, works on GitHub Pages + Safari) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --bg: #080c14;
@@ -689,6 +686,10 @@
   </div>
 </div>
 
+<!-- Firebase compat SDK — загружается синхронно перед основным кодом -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
 <script>
 // ============================================================
 // ██████████████████████████████████████████████████████████
@@ -1175,9 +1176,7 @@ function onDrop(e, status) {
   if (!draggedId) return;
   const task = tasks.find(t => t.id === draggedId);
   if (task) {
-    task.status = status;
-    fbSetTask(task);
-    renderAll();
+    fbSetTask({ ...task, status });
     toast('Статус обновлён', 'success');
   }
   draggedId = null;
@@ -1461,27 +1460,26 @@ function saveTask() {
   if (editingId) {
     const idx = tasks.findIndex(t => t.id === editingId);
     if (idx >= 0) {
-      tasks[idx] = { ...tasks[idx], ...data };
-      fbSetTask(tasks[idx]);
+      const updated = { ...tasks[idx], ...data };
+      fbSetTask(updated);
       toast('Задача обновлена', 'success');
     }
   } else {
     const newTask = { id: uid(), week: 1, createdAt: new Date().toISOString().split('T')[0], ...data };
-    tasks.push(newTask);
     fbSetTask(newTask);
     toast('Задача создана', 'success');
   }
 
-  closeModal(); renderAll();
+  closeModal();
 }
 
 function deleteTask() {
   if (!editingId) return;
   if (!confirm('Удалить задачу?')) return;
   const id = editingId;
-  tasks = tasks.filter(t => t.id !== id);
   fbDeleteTask(id);
-  closeModal(); renderAll(); toast('Задача удалена', 'success');
+  closeModal();
+  toast('Задача удалена', 'success');
 }
 
 // ============================================================
@@ -1851,9 +1849,60 @@ document.addEventListener('keydown', e => {
 });
 
 // ============================================================
+// ONE-TIME DUPLICATE CLEANUP
+// ============================================================
+async function runDedupeOnce(docs) {
+  const FLAG = 'cleanup_duplicates_v1';
+  if (localStorage.getItem(FLAG)) return; // already ran
+
+  // Group docs by "title + description" key
+  const seen = {};
+  const toDelete = [];
+
+  docs.forEach(doc => {
+    const d = doc.data();
+    const key = (d.title || '').trim() + '||' + (d.desc || '').trim();
+    if (seen[key]) {
+      // Duplicate found — mark for deletion
+      toDelete.push(doc.id);
+    } else {
+      seen[key] = doc.id; // keep first occurrence
+    }
+  });
+
+  if (toDelete.length === 0) {
+    localStorage.setItem(FLAG, 'true');
+    return; // nothing to clean
+  }
+
+  try {
+    // Firestore batch delete (max 500 per batch, more than enough here)
+    const batch = db.batch();
+    toDelete.forEach(id => batch.delete(db.collection('tasks').doc(id)));
+    await batch.commit();
+    localStorage.setItem(FLAG, 'true');
+    console.log(`[cleanup] Удалено дублей: ${toDelete.length}`);
+    toast(`Очистка: удалено ${toDelete.length} дублей`, 'success');
+    // UI updates automatically via onSnapshot
+  } catch (e) {
+    console.error('[cleanup] Ошибка batch delete:', e);
+    // Don't set flag — will retry on next load
+  }
+}
+
+// ============================================================
 // FIREBASE INIT & REALTIME LISTENERS  (compat SDK — no modules)
 // ============================================================
 function initFirebase() {
+  if (typeof firebase === 'undefined') {
+    console.error('Firebase SDK не загружен — проверьте сеть или CDN');
+    const raw = localStorage.getItem('roadmap_tasks_v2');
+    tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
+    renderAll();
+    toast('Firebase SDK недоступен — работа офлайн', 'error');
+    return;
+  }
+
   showLoadingOverlay(true);
 
   // Safety timeout — hide overlay after 6 s no matter what
@@ -1894,6 +1943,7 @@ function initFirebase() {
         }
         firstTaskSnap = false;
         tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        runDedupeOnce(snapshot.docs);
         renderAll();
       },
       err => {
@@ -1954,9 +2004,13 @@ loadTeam();
 refreshAssigneeLookups();
 buildFilters();
 buildCatSelect();
-renderStats(); // render empty stats while loading
+renderStats();
 
-initFirebase();
+// window.onload гарантирует что firebase-app-compat.js и
+// firebase-firestore-compat.js уже выполнены к этому моменту
+window.addEventListener('load', function() {
+  initFirebase();
+});
 </script>
 </body>
 </html>
