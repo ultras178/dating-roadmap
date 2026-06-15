@@ -2,7 +2,9 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Dating — Дорожная карта</title>
 <style>
   :root {
@@ -422,8 +424,119 @@
   #syncDot.syncing .dot { background: var(--amber); animation: pulse 1s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  /* SCROLLBAR FOR KANBAN */
-  .kanban-board::-webkit-scrollbar { height: 8px; }
+  /* ============================================================
+     MOBILE RESPONSIVE
+  ============================================================ */
+  :root {
+    --safe-top:    env(safe-area-inset-top,    0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left:   env(safe-area-inset-left,   0px);
+    --safe-right:  env(safe-area-inset-right,  0px);
+  }
+  #sidebarOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:199; transition:opacity 0.28s; opacity:0; pointer-events:none; }
+  #sidebarOverlay.visible { opacity:1; pointer-events:all; }
+  #bottomNav { display:none; position:fixed; bottom:0; left:0; right:0; background:var(--bg2); border-top:1px solid var(--border); padding:8px 4px; padding-bottom:calc(8px + var(--safe-bottom)); flex-direction:row; justify-content:space-around; align-items:center; z-index:150; }
+  .bottom-nav-item { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 10px; border-radius:var(--radius); cursor:pointer; color:var(--text2); font-size:9px; font-weight:500; text-transform:uppercase; letter-spacing:0.04em; min-width:52px; transition:all var(--transition); -webkit-tap-highlight-color:transparent; }
+  .bottom-nav-item svg { width:20px; height:20px; }
+  .bottom-nav-item.active { color:var(--accent2); }
+  #mobileFab { display:none; position:fixed; right:calc(16px + var(--safe-right)); bottom:calc(74px + var(--safe-bottom)); width:52px; height:52px; border-radius:50%; background:var(--accent); color:#fff; align-items:center; justify-content:center; box-shadow:0 4px 20px rgba(37,99,235,0.4); z-index:160; cursor:pointer; transition:transform var(--transition); -webkit-tap-highlight-color:transparent; }
+  #mobileFab:active { transform:scale(0.93); }
+  #mobileFab svg { width:22px; height:22px; }
+  #menuBtn { display:none; width:36px; height:36px; border-radius:8px; align-items:center; justify-content:center; border:1px solid var(--border2); color:var(--text2); cursor:pointer; flex-shrink:0; -webkit-tap-highlight-color:transparent; }
+  #menuBtn svg { width:18px; height:18px; }
+  #mobileSearch { display:none; padding:10px 12px; border-bottom:1px solid var(--border); background:var(--bg2); }
+  #mobileSearch input { width:100%; height:38px; padding-left:36px; font-size:16px; }
+  #mobileSearch .search-wrap { width:100%; }
+  .touch-drag-ghost { position:fixed; pointer-events:none; z-index:9999; opacity:0.85; transform:scale(1.03) rotate(1deg); box-shadow:0 12px 32px rgba(0,0,0,0.5); border-radius:var(--radius-lg); }
+
+  /* DEBUG PANEL */
+  #debugPanel { display:none; position:fixed; top:60px; right:12px; background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius-lg); padding:12px 16px; z-index:500; font-size:11px; color:var(--text2); min-width:200px; box-shadow:0 8px 24px rgba(0,0,0,0.3); }
+  #debugPanel.visible { display:block; }
+  .debug-title { font-weight:700; color:var(--accent2); margin-bottom:8px; font-size:12px; }
+  .debug-row { display:flex; justify-content:space-between; gap:12px; padding:3px 0; border-bottom:1px solid var(--border); }
+  .debug-row:last-child { border:none; }
+  .debug-val { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+  .debug-actions { display:flex; flex-direction:column; gap:4px; margin-top:8px; }
+  .debug-btn { padding:5px 8px; border-radius:6px; background:var(--bg4); border:1px solid var(--border2); color:var(--text2); font-size:11px; cursor:pointer; text-align:center; }
+  .debug-btn:hover { color:var(--text); background:var(--bg5); }
+
+  @media (max-width: 768px) {
+    html,body { height:100dvh; }
+    #app { flex-direction:column; height:100dvh; overflow:hidden; }
+    #sidebar { position:fixed; top:0; left:0; bottom:0; width:280px; max-width:85vw; transform:translateX(-100%); z-index:200; padding-top:calc(20px + var(--safe-top)); padding-bottom:calc(20px + var(--safe-bottom)); transition:transform 0.28s cubic-bezier(0.4,0,0.2,1); }
+    #sidebar.open { transform:translateX(0); }
+    #topbar { padding:10px 12px; padding-top:calc(10px + var(--safe-top)); gap:8px; }
+    .topbar-title { font-size:14px; }
+    #menuBtn { display:flex; }
+    .view-tabs { display:none; }
+    .search-wrap { display:none; }
+    #addTaskBtn { display:none; }
+    #main { flex:1; min-height:0; }
+    #content { padding:10px; padding-bottom:calc(80px + var(--safe-bottom)); -webkit-overflow-scrolling:touch; }
+    #mobileSearch { display:block; }
+    .stats-row { grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:12px; }
+    .stat-value { font-size:22px; }
+    .stat-card { padding:12px; }
+    .kanban-board { flex-direction:row; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; padding-bottom:8px; gap:10px; min-height:unset; }
+    .kanban-col { min-width:85vw; max-width:85vw; scroll-snap-align:start; flex-shrink:0; }
+    .kanban-cards { max-height:calc(100dvh - 310px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    .task-card { padding:12px; cursor:pointer; }
+    .task-card:hover { transform:none; box-shadow:none; }
+    .card-actions { opacity:1; }
+    .card-action-btn { width:32px; height:32px; }
+    .modal-overlay { align-items:flex-end; }
+    .modal { width:100%; max-width:100%; border-radius:var(--radius-xl) var(--radius-xl) 0 0; max-height:92dvh; padding-bottom:var(--safe-bottom); transform:translateY(20px) scale(1); }
+    .modal-overlay.open .modal { transform:translateY(0) scale(1); }
+    .form-row { grid-template-columns:1fr; }
+    .modal-body { padding:16px; gap:12px; }
+    .modal-header { padding:14px 16px; }
+    .modal-footer { padding:12px 16px; flex-wrap:wrap; gap:8px; }
+    .modal-footer .btn { flex:1; justify-content:center; min-height:44px; font-size:14px; }
+    .delete-btn { flex:0 0 100% !important; order:-1; }
+    .assignee-check { padding:8px 14px; min-height:40px; }
+    .team-view { grid-template-columns:1fr; }
+    .quarter-grid { grid-template-columns:1fr; }
+    .timeline-names-col { width:130px; }
+    .timeline-name { width:130px; font-size:11px; padding:0 6px 0 10px; }
+    #bottomNav { display:flex; }
+    #mobileFab { display:flex; }
+    #toast-container { right:12px; left:12px; bottom:calc(70px + var(--safe-bottom)); }
+    .toast { font-size:12px; }
+    #syncDot { bottom:calc(70px + var(--safe-bottom)); font-size:10px; }
+    input,select,textarea { font-size:16px !important; }
+  }
+  @media (max-width: 430px) {
+    .kanban-col { min-width:90vw; max-width:90vw; }
+    .stats-row { grid-template-columns:repeat(2,1fr); }
+    .kanban-cards { max-height:calc(100dvh - 290px); }
+  }
+  @media (max-width: 393px) {
+    .kanban-col { min-width:92vw; max-width:92vw; }
+    .stat-card { padding:10px; }
+    .stat-value { font-size:20px; }
+    .stat-label { font-size:10px; }
+    .task-card { padding:10px; }
+    .card-title { font-size:12px; }
+  }
+  @media (max-width: 375px) {
+    .kanban-col { min-width:95vw; max-width:95vw; }
+    .bottom-nav-item { min-width:46px; font-size:8px; padding:5px 6px; }
+  }
+  @media (min-width: 769px) {
+    #menuBtn { display:none !important; }
+    #bottomNav { display:none !important; }
+    #mobileFab { display:none !important; }
+    #sidebarOverlay { display:none !important; }
+    #mobileSearch { display:none !important; }
+    .stats-row { grid-template-columns:repeat(5,1fr); }
+    .form-row { grid-template-columns:1fr 1fr; }
+    .modal { width:560px; max-width:90vw; }
+    .modal-overlay { align-items:center; }
+  }
+  @media (min-width: 769px) and (max-width: 1099px) {
+    .stats-row { grid-template-columns:repeat(3,1fr); }
+    .team-view { grid-template-columns:1fr 1fr; }
+  }
 
   /* TEAM MODAL MEMBER ITEMS */
   .team-modal-member {
@@ -503,7 +616,10 @@
   <!-- MAIN -->
   <main id="main">
     <div id="topbar">
-      <span class="topbar-title">Дорожная карта — Релиз</span>
+      <button id="menuBtn" onclick="toggleSidebar()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="topbar-title">Дорожная карта</span>
       <div class="search-wrap">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input class="search-input" type="text" placeholder="Поиск задач..." id="searchInput" oninput="renderAll()">
@@ -514,7 +630,7 @@
         <div class="view-tab" id="tab-quarterly" onclick="switchView('quarterly', null, this)">Недели</div>
         <div class="view-tab" id="tab-team" onclick="switchView('team', null, this)">Команда</div>
       </div>
-      <button class="btn btn-primary" onclick="openModal()">
+      <button id="addTaskBtn" class="btn btn-primary" onclick="openModal()">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
         Добавить задачу
       </button>
@@ -524,6 +640,16 @@
       <button class="theme-btn" onclick="openTeamModal()" title="Управление командой">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M19 8v6M16 11h6"/></svg>
       </button>
+      <button class="theme-btn" onclick="toggleDebugPanel()" title="Dev tools" id="debugToggleBtn" style="opacity:0.4">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>
+      </button>
+    </div>
+    <!-- Mobile search bar (shown below topbar on mobile) -->
+    <div id="mobileSearch">
+      <div class="search-wrap" style="width:100%">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="position:absolute;left:22px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text2)"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input style="width:100%;height:38px;padding-left:36px" type="text" placeholder="Поиск задач..." oninput="document.getElementById('searchInput').value=this.value;renderAll()">
+      </div>
     </div>
 
     <div id="content">
@@ -612,6 +738,56 @@
 </div>
 
 <div id="toast-container"></div>
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav id="bottomNav">
+  <div class="bottom-nav-item active" id="bnav-kanban" onclick="switchView('kanban');setBottomNav('kanban')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="18" rx="2"/><rect x="14" y="3" width="7" height="12" rx="2"/></svg>
+    Kanban
+  </div>
+  <div class="bottom-nav-item" id="bnav-timeline" onclick="switchView('timeline');setBottomNav('timeline')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><line x1="3" y1="12" x2="21" y2="12"/><circle cx="7" cy="12" r="2" fill="currentColor"/><circle cx="14" cy="12" r="2" fill="currentColor"/><circle cx="21" cy="12" r="2" fill="currentColor"/></svg>
+    Timeline
+  </div>
+  <div class="bottom-nav-item" id="bnav-quarterly" onclick="switchView('quarterly');setBottomNav('quarterly')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="22"/></svg>
+    Недели
+  </div>
+  <div class="bottom-nav-item" id="bnav-team" onclick="switchView('team');setBottomNav('team')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="18" cy="8" r="3"/><path d="M21 21v-1.5a3 3 0 0 0-3-3"/></svg>
+    Команда
+  </div>
+  <div class="bottom-nav-item" onclick="openTeamModal()">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M19 8v6M16 11h6"/></svg>
+    Команда+
+  </div>
+</nav>
+
+<!-- MOBILE FAB -->
+<button id="mobileFab" onclick="openModal()">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- DEBUG PANEL -->
+<div id="debugPanel">
+  <div class="debug-title">⚡ Dev Tools</div>
+  <div class="debug-row"><span>onSnapshot fired</span><span class="debug-val" id="dbg-snapshots">0</span></div>
+  <div class="debug-row"><span>Firestore writes</span><span class="debug-val" id="dbg-writes">0</span></div>
+  <div class="debug-row"><span>Active listeners</span><span class="debug-val" id="dbg-listeners">0</span></div>
+  <div class="debug-row"><span>Tasks in memory</span><span class="debug-val" id="dbg-tasks">0</span></div>
+  <div class="debug-row"><span>Duplicate checks</span><span class="debug-val" id="dbg-dupeChecks">0</span></div>
+  <div class="debug-row"><span>Dupes deleted</span><span class="debug-val" id="dbg-dupesDeleted">0</span></div>
+  <div class="debug-row"><span>Seed runs</span><span class="debug-val" id="dbg-seeds">0</span></div>
+  <div class="debug-row"><span>Init calls</span><span class="debug-val" id="dbg-inits">0</span></div>
+  <div class="debug-actions">
+    <button class="debug-btn" onclick="resetDedupFlag()">Reset dedup flag (v3)</button>
+    <button class="debug-btn" onclick="resetSeedFlag()">Reset seed flag</button>
+    <button class="debug-btn" onclick="logFullState()">Log state to console</button>
+  </div>
+</div>
 
 <!-- LOADING OVERLAY -->
 <div id="loadingOverlay">
@@ -880,16 +1056,11 @@ function catColor(cat) { return CAT_COLORS[CATEGORIES.indexOf(cat) % CAT_COLORS.
 // ============================================================
 // STORAGE — Firebase Firestore
 // ============================================================
-// Firestore references (set after Firebase init)
-let db = null;
-let tasksCol = null;
-let teamCol = null;
+let db          = null;
+let _fbReady    = false;
 let _unsubTasks = null;
-let _unsubTeam = null;
-let _fbReady = false;
+let _unsubTeam  = null;
 
-// Legacy save() — now writes to Firestore (called from saveTask / deleteTask / drag-drop)
-// Individual write functions replace the old single save():
 function syncStart() {
   const el = document.getElementById('syncDot');
   if (!el) return;
@@ -907,12 +1078,13 @@ function syncDone() {
 
 async function fbSetTask(task) {
   if (!_fbReady) return;
+  console.log('[fbSetTask] id:', task.id, '|', task.title);
   syncStart();
   try {
     const { id, ...data } = task;
     await db.collection('tasks').doc(id).set(data);
     syncDone();
-  } catch(e) { console.error('fbSetTask', e); toast('Ошибка синхронизации', 'error'); syncDone(); }
+  } catch(e) { console.error('[fbSetTask]', e); toast('Ошибка синхронизации', 'error'); syncDone(); }
 }
 
 async function fbDeleteTask(id) {
@@ -921,19 +1093,18 @@ async function fbDeleteTask(id) {
   try {
     await db.collection('tasks').doc(id).delete();
     syncDone();
-  } catch(e) { console.error('fbDeleteTask', e); toast('Ошибка синхронизации', 'error'); syncDone(); }
+  } catch(e) { console.error('[fbDeleteTask]', e); toast('Ошибка синхронизации', 'error'); syncDone(); }
 }
 
 async function fbSetTeam(members) {
   if (!_fbReady) return;
   try {
     await db.collection('meta').doc('team').set({ members });
-  } catch(e) { console.error('fbSetTeam', e); }
+  } catch(e) { console.error('[fbSetTeam]', e); }
 }
 
-// Old localStorage shim — kept for theme/auth only (non-collaborative settings)
-function save() { /* no-op: writes go through fbSetTask */ }
-function load() { tasks = []; /* data arrives via realtime listener */ }
+function save() { /* no-op */ }
+function load() { tasks = []; }
 
 // ============================================================
 // FILTERS
@@ -1849,143 +2020,193 @@ document.addEventListener('keydown', e => {
 });
 
 // ============================================================
-// ONE-TIME DUPLICATE CLEANUP
+// ONE-TIME SEED — Firestore flag settings/app_initialized
 // ============================================================
-async function runDedupeOnce(docs) {
-  const FLAG = 'cleanup_duplicates_v1';
-  if (localStorage.getItem(FLAG)) return; // already ran
+let _seedDone = false; // in-memory guard: never call twice per session
 
-  // Group docs by "title + description" key
-  const seen = {};
-  const toDelete = [];
+async function seedIfNeeded() {
+  if (_seedDone) return; // hard in-memory block
+  _seedDone = true;      // set immediately — blocks any concurrent call
 
-  docs.forEach(doc => {
-    const d = doc.data();
-    const key = (d.title || '').trim() + '||' + (d.desc || '').trim();
-    if (seen[key]) {
-      // Duplicate found — mark for deletion
-      toDelete.push(doc.id);
-    } else {
-      seen[key] = doc.id; // keep first occurrence
-    }
-  });
-
-  if (toDelete.length === 0) {
-    localStorage.setItem(FLAG, 'true');
-    return; // nothing to clean
-  }
-
+  console.log('[seedIfNeeded] checking settings/app_initialized...');
   try {
-    // Firestore batch delete (max 500 per batch, more than enough here)
+    const flagDoc = await db.collection('settings').doc('app_initialized').get();
+    if (flagDoc.exists) {
+      console.log('[seedIfNeeded] already initialized — skip');
+      return;
+    }
+    // Flag written FIRST — before any task writes
+    // If multiple browser tabs race here, only the first get() winner proceeds
+    // because set() is idempotent; tasks batch is safe to run once
+    console.log('[seedIfNeeded] seedTasks called');
+    _dbg.seeds++;
+    dbgUpdate();
+    await db.collection('settings').doc('app_initialized').set({
+      initialized: true,
+      at: Date.now()
+    });
     const batch = db.batch();
-    toDelete.forEach(id => batch.delete(db.collection('tasks').doc(id)));
+    DEFAULT_TASKS.forEach(t => {
+      const { id, ...data } = t;
+      batch.set(db.collection('tasks').doc(id), data);
+    });
     await batch.commit();
-    localStorage.setItem(FLAG, 'true');
-    console.log(`[cleanup] Удалено дублей: ${toDelete.length}`);
-    toast(`Очистка: удалено ${toDelete.length} дублей`, 'success');
-    // UI updates automatically via onSnapshot
-  } catch (e) {
-    console.error('[cleanup] Ошибка batch delete:', e);
-    // Don't set flag — will retry on next load
+    console.log('[seedIfNeeded] done —', DEFAULT_TASKS.length, 'tasks written');
+  } catch(e) {
+    _seedDone = false; // allow retry on hard error
+    console.error('[seedIfNeeded] error:', e);
   }
 }
 
 // ============================================================
-// FIREBASE INIT & REALTIME LISTENERS  (compat SDK — no modules)
+// ONE-TIME DEDUP CLEANUP — by title, runs once per session
+// ============================================================
+let _dedupDone = false; // in-memory guard
+
+async function runDedupeOnce(docs) {
+  const FLAG = 'cleanup_duplicates_v3';
+  if (_dedupDone) return;
+  if (localStorage.getItem(FLAG)) { _dedupDone = true; return; }
+  _dedupDone = true; // set synchronously — blocks re-entry from next snapshot
+
+  console.log('[cleanup] started — docs:', docs.length);
+  _dbg.dupeChecks++;
+
+  // Normalize: trim + lowercase + collapse multiple spaces
+  // Status, category, assignee, dates — NOT part of the key
+  const normalize = title => (title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+  // Group by normalized title, preserving insertion order (= Firestore doc order)
+  const seen = {}; // normalizedTitle → first doc id
+  const toDelete = [];
+  docs.forEach(doc => {
+    const key = normalize(doc.data().title);
+    if (seen[key] !== undefined) {
+      toDelete.push(doc.id); // duplicate — delete
+    } else {
+      seen[key] = doc.id;   // first occurrence — keep
+    }
+  });
+
+  console.log('[cleanup] duplicates found:', toDelete.length);
+  if (toDelete.length === 0) { localStorage.setItem(FLAG, 'true'); return; }
+
+  try {
+    const batch = db.batch();
+    toDelete.forEach(id => batch.delete(db.collection('tasks').doc(id)));
+    await batch.commit();
+    localStorage.setItem(FLAG, 'true');
+    _dbg.dupesDeleted += toDelete.length;
+    dbgUpdate();
+    console.log('[cleanup] deleted', toDelete.length, 'duplicates');
+    toast(`Очистка: удалено ${toDelete.length} дублей`, 'success');
+  } catch(e) {
+    _dedupDone = false; // allow retry on error
+    console.error('[cleanup] error:', e);
+  }
+}
+
+// ============================================================
+// FIREBASE INIT (compat SDK — no modules, no dynamic import)
 // ============================================================
 function initFirebase() {
+  console.log('[initFirebase] called');
+  _dbg.inits++;
+
   if (typeof firebase === 'undefined') {
-    console.error('Firebase SDK не загружен — проверьте сеть или CDN');
-    const raw = localStorage.getItem('roadmap_tasks_v2');
-    tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
+    console.error('[initFirebase] SDK not loaded');
+    tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
     renderAll();
     toast('Firebase SDK недоступен — работа офлайн', 'error');
     return;
   }
 
-  showLoadingOverlay(true);
+  // Hard guard: never run twice
+  if (_fbReady) { console.warn('[initFirebase] already ready — skip'); return; }
 
-  // Safety timeout — hide overlay after 6 s no matter what
+  showLoadingOverlay(true);
   const hangTimer = setTimeout(() => {
     showLoadingOverlay(false);
-    if (tasks.length === 0) {
-      const raw = localStorage.getItem('roadmap_tasks_v2');
-      tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
-      renderAll();
-    }
+    if (tasks.length === 0) { tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS)); renderAll(); }
     toast('Нет соединения — работа офлайн', 'error');
-  }, 6000);
+  }, 8000);
 
   try {
-    // ── Initialize via compat global ─────────────────────────
     const app = firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore(app);
     _fbReady = true;
+    console.log('[initFirebase] Firestore ready');
 
-    // ── Realtime listener: tasks ─────────────────────────────
-    let firstTaskSnap = true;
-    _unsubTasks = db.collection('tasks').onSnapshot(
-      snapshot => {
-        clearTimeout(hangTimer);
-        showLoadingOverlay(false);
+    // ── Tasks listener — subscribed exactly once ─────────────
+    if (!_unsubTasks) {
+      console.log('[initFirebase] subscribing to tasks onSnapshot');
+      _unsubTasks = db.collection('tasks').onSnapshot(
+        snapshot => {
+          console.log('[onSnapshot] tasks fired — docs:', snapshot.docs.length);
+          _dbg.snapshots++;
+          dbgUpdate();
+          clearTimeout(hangTimer);
+          showLoadingOverlay(false);
 
-        if (snapshot.empty && firstTaskSnap) {
-          // First-ever run — seed default tasks
-          firstTaskSnap = false;
-          const batch = db.batch();
-          DEFAULT_TASKS.forEach(t => {
-            const { id, ...data } = t;
-            batch.set(db.collection('tasks').doc(id), data);
-          });
-          batch.commit().catch(e => console.error('seed batch:', e));
-          // onSnapshot fires again after commit with the seeded docs
-          return;
+          // Seed check: runs once per session, after first real snapshot
+          // Runs AFTER onSnapshot fires (not before), so no race with listener setup
+          seedIfNeeded();
+
+          tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+          // Dedup: runs once per session (in-memory flag), no-op after first run
+          runDedupeOnce(snapshot.docs);
+
+          renderAll();
+        },
+        err => {
+          clearTimeout(hangTimer);
+          showLoadingOverlay(false);
+          console.error('[onSnapshot] tasks error:', err);
+          tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+          renderAll();
+          toast('Ошибка Firestore — работа офлайн', 'error');
         }
-        firstTaskSnap = false;
-        tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        runDedupeOnce(snapshot.docs);
-        renderAll();
-      },
-      err => {
-        clearTimeout(hangTimer);
-        showLoadingOverlay(false);
-        console.error('tasks onSnapshot:', err);
-        const raw = localStorage.getItem('roadmap_tasks_v2');
-        tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
-        renderAll();
-        toast('Ошибка Firestore — работа офлайн', 'error');
-      }
-    );
+      );
+    }
 
-    // ── Realtime listener: team ──────────────────────────────
-    _unsubTeam = db.collection('meta').doc('team').onSnapshot(
-      snap => {
-        if (snap.exists) {
-          const remote = snap.data().members || [];
-          if (remote.length > 0) {
-            teamMembers = remote;
-            BASE_TEAM.forEach(bm => {
-              if (!teamMembers.find(m => m.name === bm.name)) teamMembers.unshift(bm);
-            });
-            localStorage.setItem(TEAM_KEY, JSON.stringify(teamMembers));
-            syncTeamToGlobals();
-            refreshAssigneeLookups();
-            buildFilters();
-            renderAll();
+    // ── Team listener — subscribed exactly once ──────────────
+    // fbSetTeam (write) is intentionally NOT called inside onSnapshot
+    // to avoid write→snapshot→write cycles.
+    // Team is seeded separately on first load via seedTeamIfNeeded.
+    let _teamSeeded = false;
+    if (!_unsubTeam) {
+      _unsubTeam = db.collection('meta').doc('team').onSnapshot(
+        snap => {
+          if (snap.exists) {
+            const remote = snap.data().members || [];
+            if (remote.length > 0) {
+              teamMembers = remote;
+              BASE_TEAM.forEach(bm => {
+                if (!teamMembers.find(m => m.name === bm.name)) teamMembers.unshift(bm);
+              });
+              localStorage.setItem(TEAM_KEY, JSON.stringify(teamMembers));
+              syncTeamToGlobals();
+              refreshAssigneeLookups();
+              buildFilters();
+              renderAll();
+            }
+            // doc exists but empty members: do nothing, avoid write cycle
+          } else if (!_teamSeeded) {
+            // Doc truly doesn't exist yet — write once, then never again
+            _teamSeeded = true;
+            fbSetTeam(teamMembers);
           }
-        } else {
-          fbSetTeam(teamMembers); // first run: push local team
-        }
-      },
-      err => console.error('team onSnapshot:', err)
-    );
+        },
+        err => console.error('[onSnapshot] team error:', err)
+      );
+    }
 
   } catch(err) {
     clearTimeout(hangTimer);
     showLoadingOverlay(false);
-    console.error('Firebase init failed:', err);
-    const raw = localStorage.getItem('roadmap_tasks_v2');
-    tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
+    console.error('[initFirebase] failed:', err);
+    tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
     renderAll();
     toast('Firebase недоступен — работа офлайн', 'error');
   }
@@ -1997,6 +2218,187 @@ function showLoadingOverlay(show) {
 }
 
 // ============================================================
+// DEBUG COUNTERS
+// ============================================================
+const _dbg = { snapshots:0, writes:0, listeners:0, tasks:0, dupeChecks:0, dupesDeleted:0, seeds:0, inits:0 };
+function dbgUpdate() {
+  _dbg.tasks = tasks.length;
+  _dbg.listeners = (_unsubTasks ? 1 : 0) + (_unsubTeam ? 1 : 0);
+  Object.entries(_dbg).forEach(([k,v]) => {
+    const el = document.getElementById('dbg-'+k);
+    if (el) el.textContent = v;
+  });
+}
+function toggleDebugPanel() {
+  document.getElementById('debugPanel').classList.toggle('visible');
+}
+function resetDedupFlag() {
+  localStorage.removeItem('cleanup_duplicates_v3');
+  _dedupDone = false;
+  toast('Dedup flag сброшен — перезагрузите страницу', 'success');
+}
+function resetSeedFlag() {
+  if (!_fbReady) { toast('Firebase не готов', 'error'); return; }
+  db.collection('settings').doc('app_initialized').delete()
+    .then(() => { _seedDone = false; toast('Seed flag сброшен в Firestore', 'success'); })
+    .catch(e => toast('Ошибка: ' + e.message, 'error'));
+}
+function logFullState() {
+  console.log('[DEBUG STATE]', { tasks: JSON.parse(JSON.stringify(tasks)), teamMembers, _dbg, _fbReady, _seedDone, _dedupDone });
+}
+
+// ============================================================
+// RUNTIME DUPLICATE PREVENTION — blocks writes with duplicate title
+// ============================================================
+const _normalize = t => (t||'').trim().toLowerCase().replace(/\s+/g,' ');
+
+function isDuplicateTitle(title, excludeId) {
+  const key = _normalize(title);
+  return tasks.some(t => _normalize(t.title) === key && t.id !== excludeId);
+}
+
+// Patch fbSetTask to log and warn on duplicate writes
+const _origFbSetTask = fbSetTask;
+window.fbSetTask = async function(task) {
+  _dbg.writes++;
+  // Invariant check: warn if a task with same normalized title already exists
+  const key = _normalize(task.title);
+  const existing = tasks.filter(t => _normalize(t.title) === key && t.id !== task.id);
+  if (existing.length > 0) {
+    console.warn('[DUPLICATE DETECTED] title:', task.title, '| existing ids:', existing.map(t=>t.id), '| writing id:', task.id);
+  }
+  dbgUpdate();
+  return _origFbSetTask(task);
+};
+
+// Patch saveTask to block duplicate creation (not editing)
+const _origSaveTaskForDupe = saveTask;
+window.saveTask = function() {
+  const title = document.getElementById('f-title')?.value?.trim();
+  if (title && !editingId && isDuplicateTitle(title, null)) {
+    console.warn('[DUPE BLOCK] attempted to create duplicate task:', title);
+    toast(`Задача "${title}" уже существует`, 'error');
+    return;
+  }
+  _origSaveTaskForDupe();
+};
+
+// ============================================================
+// MOBILE SIDEBAR
+// ============================================================
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  const o = document.getElementById('sidebarOverlay');
+  const isOpen = s.classList.contains('open');
+  if (isOpen) { closeSidebar(); } else {
+    s.classList.add('open');
+    o.classList.add('visible');
+  }
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('visible');
+}
+
+// Close sidebar on nav item click (mobile)
+document.addEventListener('click', e => {
+  if (window.innerWidth <= 768 && e.target.closest('.nav-item')) {
+    setTimeout(closeSidebar, 120);
+  }
+});
+
+// ============================================================
+// MOBILE BOTTOM NAV SYNC
+// ============================================================
+function setBottomNav(view) {
+  document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('bnav-' + view);
+  if (el) el.classList.add('active');
+}
+
+// ============================================================
+// TOUCH DRAG & DROP for Kanban
+// ============================================================
+let _touchDragId   = null;
+let _touchGhost    = null;
+let _touchOffsetX  = 0;
+let _touchOffsetY  = 0;
+
+function initTouchDrag() {
+  document.addEventListener('touchstart', onTouchStart, { passive: false });
+  document.addEventListener('touchmove',  onTouchMove,  { passive: false });
+  document.addEventListener('touchend',   onTouchEnd,   { passive: false });
+}
+
+function onTouchStart(e) {
+  const card = e.target.closest('.task-card');
+  if (!card) return;
+  const btn = e.target.closest('.card-action-btn');
+  if (btn) return; // let click through on edit button
+
+  _touchDragId = card.dataset.id;
+  const rect = card.getBoundingClientRect();
+  const touch = e.touches[0];
+  _touchOffsetX = touch.clientX - rect.left;
+  _touchOffsetY = touch.clientY - rect.top;
+
+  // Create ghost after brief hold (150ms) to distinguish tap from drag
+  card._touchTimer = setTimeout(() => {
+    _touchGhost = card.cloneNode(true);
+    _touchGhost.className = 'task-card touch-drag-ghost';
+    _touchGhost.style.width = rect.width + 'px';
+    _touchGhost.style.left = (touch.clientX - _touchOffsetX) + 'px';
+    _touchGhost.style.top  = (touch.clientY - _touchOffsetY) + 'px';
+    document.body.appendChild(_touchGhost);
+    card.style.opacity = '0.35';
+    e.preventDefault();
+  }, 150);
+}
+
+function onTouchMove(e) {
+  if (!_touchGhost) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  _touchGhost.style.left = (touch.clientX - _touchOffsetX) + 'px';
+  _touchGhost.style.top  = (touch.clientY - _touchOffsetY) + 'px';
+
+  // Highlight drop zone
+  document.querySelectorAll('.kanban-cards').forEach(el => el.classList.remove('drag-over'));
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  const zone = el?.closest('.kanban-cards');
+  if (zone) zone.classList.add('drag-over');
+}
+
+function onTouchEnd(e) {
+  const card = document.querySelector(`.task-card[data-id="${_touchDragId}"]`);
+  if (card) {
+    clearTimeout(card._touchTimer);
+    card.style.opacity = '';
+  }
+  document.querySelectorAll('.kanban-cards').forEach(el => el.classList.remove('drag-over'));
+
+  if (_touchGhost) {
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const zone = el?.closest('.kanban-cards');
+    if (zone && _touchDragId) {
+      const newStatus = zone.dataset.status;
+      const task = tasks.find(t => t.id === _touchDragId);
+      if (task && task.status !== newStatus) {
+        fbSetTask({ ...task, status: newStatus });
+        toast('Статус обновлён', 'success');
+      }
+    }
+    _touchGhost.remove();
+    _touchGhost = null;
+  } else if (_touchDragId) {
+    // It was a tap, not a drag — open modal
+    // (handleCardClick won't fire because touchend doesn't produce click with timeout)
+  }
+  _touchDragId = null;
+}
+
+// ============================================================
 // INIT
 // ============================================================
 loadTheme();
@@ -2005,11 +2407,11 @@ refreshAssigneeLookups();
 buildFilters();
 buildCatSelect();
 renderStats();
+initTouchDrag();
 
-// window.onload гарантирует что firebase-app-compat.js и
-// firebase-firestore-compat.js уже выполнены к этому моменту
 window.addEventListener('load', function() {
   initFirebase();
+  dbgUpdate();
 });
 </script>
 </body>
