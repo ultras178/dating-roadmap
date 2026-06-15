@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dating — Дорожная карта</title>
+<!-- Firebase compat (no bundler, no modules, works on GitHub Pages + Safari) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --bg: #080c14;
@@ -694,12 +697,13 @@
 // ██  Your apps → SDK setup and configuration              ██
 // ██████████████████████████████████████████████████████████
 const FIREBASE_CONFIG = {
-  apiKey:            "REPLACE_WITH_YOUR_API_KEY",
-  authDomain:        "REPLACE_WITH_YOUR_AUTH_DOMAIN",
-  projectId:         "REPLACE_WITH_YOUR_PROJECT_ID",
-  storageBucket:     "REPLACE_WITH_YOUR_STORAGE_BUCKET",
-  messagingSenderId: "REPLACE_WITH_YOUR_MESSAGING_SENDER_ID",
-  appId:             "REPLACE_WITH_YOUR_APP_ID"
+  apiKey:            "AIzaSyDBjqqb5JfDyVLYAbtoawhmws2PEouvVTk",
+  authDomain:        "dating-roadmap.firebaseapp.com",
+  projectId:         "dating-roadmap",
+  storageBucket:     "dating-roadmap.firebasestorage.app",
+  messagingSenderId: "681826797586",
+  appId:             "1:681826797586:web:9b12430416b6d2144fb0cb",
+  measurementId:     "G-P1WHZ2BZ7R"
 };
 // ██████████████████████████████████████████████████████████
 
@@ -905,7 +909,7 @@ async function fbSetTask(task) {
   syncStart();
   try {
     const { id, ...data } = task;
-    await window._fbSetDoc(window._fbDoc(db, 'tasks', id), data);
+    await db.collection('tasks').doc(id).set(data);
     syncDone();
   } catch(e) { console.error('fbSetTask', e); toast('Ошибка синхронизации', 'error'); syncDone(); }
 }
@@ -914,7 +918,7 @@ async function fbDeleteTask(id) {
   if (!_fbReady) return;
   syncStart();
   try {
-    await window._fbDeleteDoc(window._fbDoc(db, 'tasks', id));
+    await db.collection('tasks').doc(id).delete();
     syncDone();
   } catch(e) { console.error('fbDeleteTask', e); toast('Ошибка синхронизации', 'error'); syncDone(); }
 }
@@ -922,7 +926,7 @@ async function fbDeleteTask(id) {
 async function fbSetTeam(members) {
   if (!_fbReady) return;
   try {
-    await window._fbSetDoc(window._fbDoc(db, 'meta', 'team'), { members });
+    await db.collection('meta').doc('team').set({ members });
   } catch(e) { console.error('fbSetTeam', e); }
 }
 
@@ -1847,84 +1851,99 @@ document.addEventListener('keydown', e => {
 });
 
 // ============================================================
-// FIREBASE INIT & REALTIME LISTENERS
+// FIREBASE INIT & REALTIME LISTENERS  (compat SDK — no modules)
 // ============================================================
-async function initFirebase() {
+function initFirebase() {
   showLoadingOverlay(true);
+
+  // Safety timeout — hide overlay after 6 s no matter what
+  const hangTimer = setTimeout(() => {
+    showLoadingOverlay(false);
+    if (tasks.length === 0) {
+      const raw = localStorage.getItem('roadmap_tasks_v2');
+      tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
+      renderAll();
+    }
+    toast('Нет соединения — работа офлайн', 'error');
+  }, 6000);
+
   try {
-    // ── Import Firebase modules ──────────────────────────────
-    const { initializeApp }           = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-    const { getFirestore, collection, doc, setDoc, deleteDoc,
-            onSnapshot, getDocs, writeBatch }
-                                      = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-
-    // ── Expose helpers used by save functions ────────────────
-    window._fbSetDoc    = setDoc;
-    window._fbDeleteDoc = deleteDoc;
-    window._fbDoc       = doc;
-
-    // ── Initialize app ───────────────────────────────────────
-    const app = initializeApp(FIREBASE_CONFIG);
-    db = getFirestore(app);
+    // ── Initialize via compat global ─────────────────────────
+    const app = firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore(app);
     _fbReady = true;
 
     // ── Realtime listener: tasks ─────────────────────────────
-    const tasksRef = collection(db, 'tasks');
+    let firstTaskSnap = true;
+    _unsubTasks = db.collection('tasks').onSnapshot(
+      snapshot => {
+        clearTimeout(hangTimer);
+        showLoadingOverlay(false);
 
-    // Seed default tasks if Firestore is empty on first run
-    const snap = await getDocs(tasksRef);
-    if (snap.empty) {
-      const batch = writeBatch(db);
-      DEFAULT_TASKS.forEach(t => {
-        const { id, ...data } = t;
-        batch.set(doc(db, 'tasks', id), data);
-      });
-      await batch.commit();
-    }
-
-    // Live tasks listener — updates local state & re-renders
-    _unsubTasks = onSnapshot(tasksRef, snapshot => {
-      tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderAll();
-    });
+        if (snapshot.empty && firstTaskSnap) {
+          // First-ever run — seed default tasks
+          firstTaskSnap = false;
+          const batch = db.batch();
+          DEFAULT_TASKS.forEach(t => {
+            const { id, ...data } = t;
+            batch.set(db.collection('tasks').doc(id), data);
+          });
+          batch.commit().catch(e => console.error('seed batch:', e));
+          // onSnapshot fires again after commit with the seeded docs
+          return;
+        }
+        firstTaskSnap = false;
+        tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderAll();
+      },
+      err => {
+        clearTimeout(hangTimer);
+        showLoadingOverlay(false);
+        console.error('tasks onSnapshot:', err);
+        const raw = localStorage.getItem('roadmap_tasks_v2');
+        tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
+        renderAll();
+        toast('Ошибка Firestore — работа офлайн', 'error');
+      }
+    );
 
     // ── Realtime listener: team ──────────────────────────────
-    const teamRef = doc(db, 'meta', 'team');
-    _unsubTeam = onSnapshot(teamRef, snap => {
-      if (snap.exists()) {
-        const remote = snap.data().members || [];
-        if (remote.length > 0) {
-          teamMembers = remote;
-          // Ensure base members always present
-          BASE_TEAM.forEach(bm => {
-            if (!teamMembers.find(m => m.name === bm.name)) teamMembers.unshift(bm);
-          });
-          localStorage.setItem(TEAM_KEY, JSON.stringify(teamMembers));
-          syncTeamToGlobals();
-          refreshAssigneeLookups();
-          buildFilters();
-          renderAll();
+    _unsubTeam = db.collection('meta').doc('team').onSnapshot(
+      snap => {
+        if (snap.exists) {
+          const remote = snap.data().members || [];
+          if (remote.length > 0) {
+            teamMembers = remote;
+            BASE_TEAM.forEach(bm => {
+              if (!teamMembers.find(m => m.name === bm.name)) teamMembers.unshift(bm);
+            });
+            localStorage.setItem(TEAM_KEY, JSON.stringify(teamMembers));
+            syncTeamToGlobals();
+            refreshAssigneeLookups();
+            buildFilters();
+            renderAll();
+          }
+        } else {
+          fbSetTeam(teamMembers); // first run: push local team
         }
-      } else {
-        // First run: push local team to Firestore
-        fbSetTeam(teamMembers);
-      }
-    });
+      },
+      err => console.error('team onSnapshot:', err)
+    );
 
-    showLoadingOverlay(false);
   } catch(err) {
-    console.error('Firebase init failed:', err);
-    // Graceful fallback to localStorage
+    clearTimeout(hangTimer);
     showLoadingOverlay(false);
+    console.error('Firebase init failed:', err);
     const raw = localStorage.getItem('roadmap_tasks_v2');
     tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
     renderAll();
-    toast('Работа в офлайн-режиме', 'error');
+    toast('Firebase недоступен — работа офлайн', 'error');
   }
 }
 
 function showLoadingOverlay(show) {
-  document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+  const el = document.getElementById('loadingOverlay');
+  if (el) el.style.display = show ? 'flex' : 'none';
 }
 
 // ============================================================
