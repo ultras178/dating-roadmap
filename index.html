@@ -393,6 +393,35 @@
   .hidden { display: none !important; }
   .collapsible { overflow: hidden; }
 
+  /* LOADING OVERLAY */
+  #loadingOverlay {
+    position: fixed; inset: 0; z-index: 9000;
+    background: var(--bg); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+  }
+  .loading-spinner {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 3px solid var(--border2);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--text2); }
+
+  /* SYNC INDICATOR */
+  #syncDot {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text2); background: var(--bg2);
+    border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px;
+    z-index: 100; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  #syncDot.visible { opacity: 1; }
+  #syncDot .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  #syncDot.syncing .dot { background: var(--amber); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
   /* SCROLLBAR FOR KANBAN */
   .kanban-board::-webkit-scrollbar { height: 8px; }
 
@@ -584,6 +613,22 @@
 
 <div id="toast-container"></div>
 
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+    <div style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#2563eb,#38bdf8);display:flex;align-items:center;justify-content:center;font-size:14px">💝</div>
+    <span style="font-size:15px;font-weight:600;color:var(--text)">Dating</span>
+  </div>
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Подключение к базе данных…</div>
+</div>
+
+<!-- SYNC INDICATOR -->
+<div id="syncDot">
+  <div class="dot"></div>
+  <span id="syncLabel">Синхронизировано</span>
+</div>
+
 <!-- TEAM MANAGEMENT MODAL -->
 <div class="modal-overlay" id="teamModalOverlay" onclick="handleTeamOverlayClick(event)">
   <div class="modal" style="width:500px">
@@ -642,6 +687,22 @@
 </div>
 
 <script>
+// ============================================================
+// ██████████████████████████████████████████████████████████
+// ██  FIREBASE CONFIG — ВСТАВЬТЕ ВАШИ ДАННЫЕ СЮДА         ██
+// ██  Получить: Firebase Console → Project Settings →      ██
+// ██  Your apps → SDK setup and configuration              ██
+// ██████████████████████████████████████████████████████████
+const FIREBASE_CONFIG = {
+  apiKey:            "REPLACE_WITH_YOUR_API_KEY",
+  authDomain:        "REPLACE_WITH_YOUR_AUTH_DOMAIN",
+  projectId:         "REPLACE_WITH_YOUR_PROJECT_ID",
+  storageBucket:     "REPLACE_WITH_YOUR_STORAGE_BUCKET",
+  messagingSenderId: "REPLACE_WITH_YOUR_MESSAGING_SENDER_ID",
+  appId:             "REPLACE_WITH_YOUR_APP_ID"
+};
+// ██████████████████████████████████████████████████████████
+
 // ============================================================
 // DATA
 // ============================================================
@@ -812,13 +873,62 @@ function formatDate(str) {
 function catColor(cat) { return CAT_COLORS[CATEGORIES.indexOf(cat) % CAT_COLORS.length]; }
 
 // ============================================================
-// STORAGE
+// STORAGE — Firebase Firestore
 // ============================================================
-function save() { localStorage.setItem('roadmap_tasks_v2', JSON.stringify(tasks)); }
-function load() {
-  const raw = localStorage.getItem('roadmap_tasks_v2');
-  tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
+// Firestore references (set after Firebase init)
+let db = null;
+let tasksCol = null;
+let teamCol = null;
+let _unsubTasks = null;
+let _unsubTeam = null;
+let _fbReady = false;
+
+// Legacy save() — now writes to Firestore (called from saveTask / deleteTask / drag-drop)
+// Individual write functions replace the old single save():
+function syncStart() {
+  const el = document.getElementById('syncDot');
+  if (!el) return;
+  el.classList.add('visible','syncing');
+  document.getElementById('syncLabel').textContent = 'Сохранение…';
 }
+function syncDone() {
+  const el = document.getElementById('syncDot');
+  if (!el) return;
+  el.classList.remove('syncing');
+  document.getElementById('syncLabel').textContent = 'Синхронизировано';
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => el.classList.remove('visible'), 2000);
+}
+
+async function fbSetTask(task) {
+  if (!_fbReady) return;
+  syncStart();
+  try {
+    const { id, ...data } = task;
+    await window._fbSetDoc(window._fbDoc(db, 'tasks', id), data);
+    syncDone();
+  } catch(e) { console.error('fbSetTask', e); toast('Ошибка синхронизации', 'error'); syncDone(); }
+}
+
+async function fbDeleteTask(id) {
+  if (!_fbReady) return;
+  syncStart();
+  try {
+    await window._fbDeleteDoc(window._fbDoc(db, 'tasks', id));
+    syncDone();
+  } catch(e) { console.error('fbDeleteTask', e); toast('Ошибка синхронизации', 'error'); syncDone(); }
+}
+
+async function fbSetTeam(members) {
+  if (!_fbReady) return;
+  try {
+    await window._fbSetDoc(window._fbDoc(db, 'meta', 'team'), { members });
+  } catch(e) { console.error('fbSetTeam', e); }
+}
+
+// Old localStorage shim — kept for theme/auth only (non-collaborative settings)
+function save() { /* no-op: writes go through fbSetTask */ }
+function load() { tasks = []; /* data arrives via realtime listener */ }
 
 // ============================================================
 // FILTERS
@@ -1060,7 +1170,12 @@ function onDrop(e, status) {
   e.currentTarget.classList.remove('drag-over');
   if (!draggedId) return;
   const task = tasks.find(t => t.id === draggedId);
-  if (task) { task.status = status; save(); renderAll(); toast('Статус обновлён', 'success'); }
+  if (task) {
+    task.status = status;
+    fbSetTask(task);
+    renderAll();
+    toast('Статус обновлён', 'success');
+  }
   draggedId = null;
 }
 
@@ -1342,23 +1457,27 @@ function saveTask() {
   if (editingId) {
     const idx = tasks.findIndex(t => t.id === editingId);
     if (idx >= 0) {
-      // Preserve original createdAt
       tasks[idx] = { ...tasks[idx], ...data };
+      fbSetTask(tasks[idx]);
       toast('Задача обновлена', 'success');
     }
   } else {
-    tasks.push({ id: uid(), week: 1, createdAt: new Date().toISOString().split('T')[0], ...data });
+    const newTask = { id: uid(), week: 1, createdAt: new Date().toISOString().split('T')[0], ...data };
+    tasks.push(newTask);
+    fbSetTask(newTask);
     toast('Задача создана', 'success');
   }
 
-  save(); closeModal(); renderAll();
+  closeModal(); renderAll();
 }
 
 function deleteTask() {
   if (!editingId) return;
   if (!confirm('Удалить задачу?')) return;
-  tasks = tasks.filter(t => t.id !== editingId);
-  save(); closeModal(); renderAll(); toast('Задача удалена', 'success');
+  const id = editingId;
+  tasks = tasks.filter(t => t.id !== id);
+  fbDeleteTask(id);
+  closeModal(); renderAll(); toast('Задача удалена', 'success');
 }
 
 // ============================================================
@@ -1592,22 +1711,22 @@ const EXTRA_AVATAR_COLORS = [
 let teamMembers = [];
 
 function loadTeam() {
+  // Load from localStorage as initial fallback; Firestore listener will override
   const raw = localStorage.getItem(TEAM_KEY);
   if (raw) {
     teamMembers = JSON.parse(raw);
-    // Ensure base members always exist
     BASE_TEAM.forEach(bm => {
       if (!teamMembers.find(m => m.name === bm.name)) teamMembers.unshift(bm);
     });
   } else {
     teamMembers = JSON.parse(JSON.stringify(BASE_TEAM));
   }
-  saveTeam();
   syncTeamToGlobals();
 }
 
 function saveTeam() {
   localStorage.setItem(TEAM_KEY, JSON.stringify(teamMembers));
+  fbSetTeam(teamMembers);
 }
 
 function syncTeamToGlobals() {
@@ -1728,15 +1847,97 @@ document.addEventListener('keydown', e => {
 });
 
 // ============================================================
+// FIREBASE INIT & REALTIME LISTENERS
+// ============================================================
+async function initFirebase() {
+  showLoadingOverlay(true);
+  try {
+    // ── Import Firebase modules ──────────────────────────────
+    const { initializeApp }           = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+    const { getFirestore, collection, doc, setDoc, deleteDoc,
+            onSnapshot, getDocs, writeBatch }
+                                      = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+
+    // ── Expose helpers used by save functions ────────────────
+    window._fbSetDoc    = setDoc;
+    window._fbDeleteDoc = deleteDoc;
+    window._fbDoc       = doc;
+
+    // ── Initialize app ───────────────────────────────────────
+    const app = initializeApp(FIREBASE_CONFIG);
+    db = getFirestore(app);
+    _fbReady = true;
+
+    // ── Realtime listener: tasks ─────────────────────────────
+    const tasksRef = collection(db, 'tasks');
+
+    // Seed default tasks if Firestore is empty on first run
+    const snap = await getDocs(tasksRef);
+    if (snap.empty) {
+      const batch = writeBatch(db);
+      DEFAULT_TASKS.forEach(t => {
+        const { id, ...data } = t;
+        batch.set(doc(db, 'tasks', id), data);
+      });
+      await batch.commit();
+    }
+
+    // Live tasks listener — updates local state & re-renders
+    _unsubTasks = onSnapshot(tasksRef, snapshot => {
+      tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderAll();
+    });
+
+    // ── Realtime listener: team ──────────────────────────────
+    const teamRef = doc(db, 'meta', 'team');
+    _unsubTeam = onSnapshot(teamRef, snap => {
+      if (snap.exists()) {
+        const remote = snap.data().members || [];
+        if (remote.length > 0) {
+          teamMembers = remote;
+          // Ensure base members always present
+          BASE_TEAM.forEach(bm => {
+            if (!teamMembers.find(m => m.name === bm.name)) teamMembers.unshift(bm);
+          });
+          localStorage.setItem(TEAM_KEY, JSON.stringify(teamMembers));
+          syncTeamToGlobals();
+          refreshAssigneeLookups();
+          buildFilters();
+          renderAll();
+        }
+      } else {
+        // First run: push local team to Firestore
+        fbSetTeam(teamMembers);
+      }
+    });
+
+    showLoadingOverlay(false);
+  } catch(err) {
+    console.error('Firebase init failed:', err);
+    // Graceful fallback to localStorage
+    showLoadingOverlay(false);
+    const raw = localStorage.getItem('roadmap_tasks_v2');
+    tasks = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_TASKS));
+    renderAll();
+    toast('Работа в офлайн-режиме', 'error');
+  }
+}
+
+function showLoadingOverlay(show) {
+  document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+}
+
+// ============================================================
 // INIT
 // ============================================================
 loadTheme();
 loadTeam();
 refreshAssigneeLookups();
-load();
 buildFilters();
-renderAll();
 buildCatSelect();
+renderStats(); // render empty stats while loading
+
+initFirebase();
 </script>
 </body>
 </html>
